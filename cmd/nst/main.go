@@ -56,7 +56,8 @@ var subCmdsLookup = func() map[string]cmdFactory {
 }()
 
 func showHelp() {
-	fmt.Println("Provide a valid subcommand:\n")
+	fmt.Println("Provide a valid subcommand:")
+	fmt.Println("")
 	for _, scf := range subCmdFactories {
 		sc := scf(orm.Repo{})
 		fmt.Printf("%20s", strings.Join(sc.Names(), " or "))
@@ -69,7 +70,7 @@ func main() {
 
 	repo, err := orm.LoadRepo(*nestPath)
 	if err != nil {
-		log.Fatalf("unable to load nest: %w", err)
+		log.Fatalf("unable to load nest: %s", err)
 	}
 
 	subArgStart := len(os.Args) - flag.NArg()

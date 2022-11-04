@@ -50,7 +50,7 @@ func (gcc *getConfigCmd) Run(ctx context.Context, r io.Reader, w io.Writer) erro
 
 	value, err := gcc.repo.GetConfig(ctx, *gcc.key)
 	if err != nil {
-		return fmt.Errorf("getting config %q: %w", gcc.key, err)
+		return fmt.Errorf("getting config %q: %w", *gcc.key, err)
 	}
 	_, err = fmt.Fprintln(w, value)
 	return err
@@ -84,7 +84,7 @@ func (gcc *setConfigCmd) FlagSet() *flag.FlagSet {
 func (gcc *setConfigCmd) Run(ctx context.Context, r io.Reader, w io.Writer) error {
 	err := gcc.repo.SetConfig(ctx, *gcc.key, *gcc.value)
 	if err != nil {
-		return fmt.Errorf("setting config %q: %w", gcc.key, err)
+		return fmt.Errorf("setting config %q: %w", *gcc.key, err)
 	}
 	return nil
 }

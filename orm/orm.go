@@ -55,7 +55,7 @@ var migrationFS embed.FS
 func InitRepo(repoPath string) error {
 	migrations, err := iofs.New(migrationFS, "migrations")
 	if err != nil {
-		fmt.Errorf("loading embedded migrations: %w", err)
+		return fmt.Errorf("loading embedded migrations: %w", err)
 	}
 
 	db, err := sql.Open("sqlite3", repoPath)

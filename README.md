@@ -117,6 +117,24 @@ You can set a config with:
 
 ## FAQ
 
+### Who are the inspirations?
+
+- nb - for terminal based note taking
+- Workflowy - for nested note taking concept
+- Fossil - SQLite based SCM with advanced features
+
+### What are the design goals and principles?
+
+- Local first - notes are stored locally first. No backup to an external service occurs unless the user explicitly configures it.
+- Optimal for small bits of work - need to jot down a single sentence? Since notes are not files, there is less anxiety about cluttering up a file system.
+- Fast - writing and reading notes should be fast. Searching for notes should be fast. Indexing or back up operations should never get in the way of capturing a thought.
+- Single file database - notes are kept in a single file. This simplifies backup and sharing of notes. This emboldens the user to store many small bits of data.
+- Relational notes - notes maintain relationships between each other through various mechanisms (tags) to build a knowledge graph.
+- Terminal first - the primary interface is in the terminal. This makes it great for developer workflows.
+- Batteries included - whenever possible, all functionality should derive from the single executable. The editor is the only external dependency and a default editor may be embedded in the future to mitigate that.
+- Interactive first - user interfaces are interactive by default. This makes learning the tool much faster since you don't have to remember a bunch of CLI arguments to start using it.
+- Extensible - there's no definitive way to use it. Various features leave the door open for creative use cases.
+
 ### What is `<note-ish>`?
 
 Note-ish is inspired by [Git's "commit-ish" or "tree-ish"](https://stackoverflow.com/questions/23303549/what-are-commit-ish-and-tree-ish-in-git), Note-ish is a notation to specify a note one of several ways. The following list of notations are in order of precedence:

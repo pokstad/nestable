@@ -1,10 +1,5 @@
 PRAGMA foreign_keys = ON;
 
-DROP TABLE IF EXISTS note;
-DROP TABLE IF EXISTS note_rev;
-DROP TABLE IF EXISTS blob;
-DROP TABLE IF EXISTS config;
-
 /* note represents a logical note in the application */
 CREATE TABLE note (
 	id INTEGER PRIMARY KEY

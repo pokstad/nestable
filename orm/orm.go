@@ -29,6 +29,13 @@ type Repo struct {
 	db *sql.DB
 }
 
+var clock = time.Now
+
+// SetClock allows the normal time function to be overriden.
+// This time function is used to derive the note timestamps.
+// Intended to be used during tests to provide deterministic time.
+func SetClock(c func() time.Time) { clock = c }
+
 func LoadRepo(dbPath string) (Repo, error) {
 	if dbPath == "" {
 		for _, p := range []string{
@@ -59,10 +66,15 @@ func InitRepo(repoPath string) error {
 	}
 
 	db, err := sql.Open("sqlite3", repoPath)
+	if err != nil {
+		return fmt.Errorf("opening DB for initialization: %w", err)
+	}
+
 	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
 	if err != nil {
 		return fmt.Errorf("migration driver: %w", err)
 	}
+
 	m, err := migrate.NewWithInstance(
 		"iofs",
 		migrations,
@@ -75,7 +87,14 @@ func InitRepo(repoPath string) error {
 	return m.Up()
 }
 
-func (r Repo) GetConfig(ctx context.Context, key string) (string, error) {
+type ConfigKey string
+
+const (
+	ConfigEditor  ConfigKey = "editor"
+	ConfigVersion ConfigKey = "version"
+)
+
+func (r Repo) GetConfig(ctx context.Context, key ConfigKey) (string, error) {
 	row := r.db.QueryRowContext(ctx, "SELECT value FROM config WHERE key = (?)", key)
 
 	var value string
@@ -105,7 +124,7 @@ func (r Repo) GetConfigKeys(ctx context.Context) ([]string, error) {
 	return keys, nil
 }
 
-func (r Repo) SetConfig(ctx context.Context, key, value string) error {
+func (r Repo) SetConfig(ctx context.Context, key ConfigKey, value string) error {
 	_, err := r.db.ExecContext(ctx, "UPDATE CONFIG SET value = (?) WHERE key = (?)", value, key)
 	if err != nil {
 		return fmt.Errorf("setting config for key %q: %w", key, err)
@@ -150,8 +169,8 @@ func (nr NoteRev) UpdateBlob(ctx context.Context, r Repo, src io.Reader) (NoteRe
 		return NoteRev{}, fmt.Errorf("inserting new blob: %w", err)
 	}
 
-	timestamp := time.Now()
-	_, err = tx.ExecContext(ctx, "INSERT INTO note_rev(note_id, blob_sha256, timestamp) VALUES(?,?,?)", nr.ID, sum, timestamp)
+	timestamp := clock()
+	_, err = tx.ExecContext(ctx, "INSERT INTO note_rev(note_id, blob_sha256, timestamp) VALUES(?,?,?)", nr.ID, sum, timestamp.UTC())
 	if err != nil {
 		return NoteRev{}, fmt.Errorf("inserting new note rev: %w", err)
 	}
@@ -173,6 +192,8 @@ func (nr NoteRev) UpdateBlob(ctx context.Context, r Repo, src io.Reader) (NoteRe
 
 // GetBlobHead returns an excerpt from the front of the blob limited by the specified length
 // from the provided repo
+// TODO: once streaming blob IO is available, change behavior so that head scans until the first
+// newline or the limit, which ever is encountered first
 func (b Blob) GetBlobHead(ctx context.Context, r Repo, length int) ([]byte, error) {
 	row := r.db.QueryRowContext(ctx, "SELECT substr(body, 1, ?) FROM blob WHERE sha256 = (?)", length, b.SHA256)
 	var head []byte
@@ -224,7 +245,7 @@ func (r Repo) NewNote(ctx context.Context, src io.Reader) (NoteRev, error) {
 		return NoteRev{}, fmt.Errorf("new note ID: %w", err)
 	}
 
-	timestamp := time.Now()
+	timestamp := clock()
 	_, err = tx.ExecContext(ctx, "INSERT INTO note_rev(note_id, blob_sha256, timestamp) VALUES(?,?,?)", noteID, sum, timestamp)
 	if err != nil {
 		return NoteRev{}, fmt.Errorf("inserting new note rev: %w", err)
@@ -247,12 +268,13 @@ func (r Repo) NewNote(ctx context.Context, src io.Reader) (NoteRev, error) {
 
 func (r Repo) GetCurrentNoteRev(ctx context.Context, id int64) (NoteRev, error) {
 	row := r.db.QueryRowContext(ctx,
-		`SELECT note_id, blob_sha256, timestamp 
+		`SELECT note_id, blob_sha256, timestamp, MAX(rowid) 
 		FROM note_rev 
 		WHERE note_id = (?)`, id)
 
 	var nr NoteRev
-	if err := row.Scan(&nr.ID, &nr.SHA256, &nr.Timestamp); err != nil {
+	var rowid int
+	if err := row.Scan(&nr.ID, &nr.SHA256, &nr.Timestamp, &rowid); err != nil {
 		return NoteRev{}, fmt.Errorf("querying notes: %w", err)
 	}
 
@@ -279,6 +301,7 @@ func (r Repo) GetNotes(ctx context.Context) ([]NoteRev, error) {
 		if err := rows.Scan(&r.ID, &r.SHA256, &r.Timestamp, &rowid); err != nil {
 			return nil, fmt.Errorf("scanning note summaries reults: %w", err)
 		}
+		r.Timestamp = r.Timestamp.Local()
 		revs = append(revs, r)
 	}
 

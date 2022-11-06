@@ -13,6 +13,7 @@ import (
 
 type newCmd struct {
 	repo orm.Repo
+	msg  *string
 }
 
 func newNewCmd(repo orm.Repo) subCmd {
@@ -28,15 +29,21 @@ func (_ *newCmd) Names() []string {
 }
 
 func (nc *newCmd) FlagSet() *flag.FlagSet {
-	return flag.NewFlagSet("new", flag.ExitOnError)
+	fs := flag.NewFlagSet("new", flag.ExitOnError)
+	nc.msg = fs.String("m", "", "Provide note as an arg without invoking external editor")
+	return fs
 }
 
 func (nc *newCmd) Run(ctx context.Context, r io.Reader, w io.Writer) error {
-	blob, err := runEditor(ctx, nc.repo, bytes.NewReader(nil), r, w, os.Stderr)
-	if err != nil {
-		return fmt.Errorf("run external editor: %w", err)
+	var blob io.Reader = bytes.NewBufferString(*nc.msg)
+
+	if *nc.msg == "" {
+		blob, err := runEditor(ctx, nc.repo, bytes.NewReader(nil), r, w, os.Stderr)
+		if err != nil {
+			return fmt.Errorf("run external editor: %w", err)
+		}
+		defer blob.Close()
 	}
-	defer blob.Close()
 
 	nr, err := nc.repo.NewNote(ctx, blob)
 	if err != nil {

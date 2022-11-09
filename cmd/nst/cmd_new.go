@@ -38,11 +38,14 @@ func (nc *newCmd) Run(ctx context.Context, r io.Reader, w io.Writer) error {
 	var blob io.Reader = bytes.NewBufferString(*nc.msg)
 
 	if *nc.msg == "" {
-		blob, err := runEditor(ctx, nc.repo, bytes.NewReader(nil), r, w, os.Stderr)
+		var err error
+		editorBlob, err := runEditor(ctx, nc.repo, bytes.NewReader(nil), r, w, os.Stderr)
 		if err != nil {
 			return fmt.Errorf("run external editor: %w", err)
 		}
-		defer blob.Close()
+		defer editorBlob.Close()
+
+		blob = editorBlob
 	}
 
 	nr, err := nc.repo.NewNote(ctx, blob)

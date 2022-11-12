@@ -12,7 +12,8 @@ import (
 )
 
 type viewCmd struct {
-	repo orm.Repo
+	repo   orm.Repo
+	search *string
 }
 
 func newViewCmd(repo orm.Repo) subCmd {
@@ -28,13 +29,33 @@ func (_ *viewCmd) Names() []string {
 }
 
 func (vc *viewCmd) FlagSet() *flag.FlagSet {
-	return flag.NewFlagSet("view", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
+	vc.search = fs.String("s", "", "full text search term to filter results")
+	return fs
 }
 
 func (vc *viewCmd) Run(ctx context.Context, r io.Reader, w io.Writer) error {
-	rev, err := selectNoteRev(ctx, vc.repo, "Select a note to view")
-	if err != nil {
-		return fmt.Errorf("selecting note to view: %w", err)
+	var rev orm.NoteRev
+
+	if *vc.search != "" {
+		results, err := vc.repo.FullTextSearch(ctx, *vc.search)
+		if err != nil {
+			return fmt.Errorf("full text search with term %q: %w", *vc.search, err)
+		}
+
+		rev, err = selectFTSResults(ctx, vc.repo, results)
+		if err != nil {
+			return fmt.Errorf("selecting search results: %w", err)
+		}
+
+	}
+
+	if rev == (orm.NoteRev{}) {
+		var err error
+		rev, err = selectNoteRev(ctx, vc.repo, "Select a note to view")
+		if err != nil {
+			return fmt.Errorf("selecting note to view: %w", err)
+		}
 	}
 
 	bReader, err := rev.GetReader(ctx, vc.repo)

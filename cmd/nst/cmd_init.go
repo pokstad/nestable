@@ -33,5 +33,6 @@ func (ic *initCmd) FlagSet() *flag.FlagSet {
 }
 
 func (ic *initCmd) Run(ctx context.Context, r io.Reader, w io.Writer) error {
-	return orm.InitRepo(*ic.path)
+	_, err := orm.InitRepo(*ic.path)
+	return err
 }

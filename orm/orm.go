@@ -1,3 +1,5 @@
+//go:build sqlite_fts5
+
 package orm
 
 import (
@@ -53,24 +55,39 @@ func LoadRepo(dbPath string) (Repo, error) {
 	if err != nil {
 		return Repo{}, err
 	}
+
+	repo := Repo{db: db}
+	if err := repo.MigrateUp(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return Repo{}, fmt.Errorf("migrating up existing repo: %w", err)
+	}
+
 	return Repo{db}, nil
 }
 
 //go:embed migrations/*.sql
 var migrationFS embed.FS
 
-func InitRepo(repoPath string) error {
+func InitRepo(repoPath string) (Repo, error) {
+	db, err := sql.Open("sqlite3", repoPath)
+	if err != nil {
+		return Repo{}, fmt.Errorf("opening DB for initialization: %w", err)
+	}
+
+	repo := Repo{db: db}
+	if err := repo.MigrateUp(); err != nil {
+		return Repo{}, fmt.Errorf("migrating repo up: %w", err)
+	}
+
+	return repo, nil
+}
+
+func (r Repo) MigrateUp() error {
 	migrations, err := iofs.New(migrationFS, "migrations")
 	if err != nil {
 		return fmt.Errorf("loading embedded migrations: %w", err)
 	}
 
-	db, err := sql.Open("sqlite3", repoPath)
-	if err != nil {
-		return fmt.Errorf("opening DB for initialization: %w", err)
-	}
-
-	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
+	driver, err := sqlite3.WithInstance(r.db, &sqlite3.Config{})
 	if err != nil {
 		return fmt.Errorf("migration driver: %w", err)
 	}
@@ -85,6 +102,7 @@ func InitRepo(repoPath string) error {
 		return fmt.Errorf("migrate instance: %w", err)
 	}
 	return m.Up()
+
 }
 
 type ConfigKey string
@@ -306,4 +324,56 @@ func (r Repo) GetNotes(ctx context.Context) ([]NoteRev, error) {
 	}
 
 	return revs, nil
+}
+
+// FTSResult is the result of a full text search of the blob table
+type FTSResult struct {
+	noteRevRowID int64
+	SHA256       string
+	BM25         float32
+	Snippet      string
+}
+
+func (ftsr FTSResult) GetNoteRev(ctx context.Context, repo Repo) (NoteRev, error) {
+	row := repo.db.QueryRowContext(ctx,
+		`SELECT note_id, blob_sha256, timestamp 
+		FROM note_rev 
+		WHERE rowid = (?)`,
+		ftsr.noteRevRowID)
+	var nr NoteRev
+	if err := row.Scan(&nr.ID, &nr.SHA256, &nr.Timestamp); err != nil {
+		return NoteRev{}, fmt.Errorf("scanning blob fts reults: %w", err)
+	}
+
+	nr.Timestamp = nr.Timestamp.Local()
+	return nr, nil
+}
+
+func (r Repo) FullTextSearch(ctx context.Context, searchTerm string) ([]FTSResult, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT
+			note_rev_rowid,
+			blob_sha256,
+			bm25(note_fts, 0, 1.0),
+			snippet(note_fts, -1, "👉 ", " 👈", "...", 20)
+		FROM note_fts
+		WHERE blob_body MATCH (?)
+		ORDER BY bm25(note_fts, 0, 1.0);`,
+		searchTerm)
+	if err != nil {
+		return nil, fmt.Errorf("querying notes: %w", err)
+	}
+	defer rows.Close()
+
+	var results []FTSResult
+
+	for rows.Next() {
+		var b FTSResult
+		if err := rows.Scan(&b.noteRevRowID, &b.SHA256, &b.BM25, &b.Snippet); err != nil {
+			return nil, fmt.Errorf("scanning blob fts reults: %w", err)
+		}
+		results = append(results, b)
+	}
+
+	return results, nil
 }

@@ -61,3 +61,44 @@ func selectNoteRev(ctx context.Context, repo orm.Repo, header string) (orm.NoteR
 
 	return notes[idx], nil
 }
+
+func selectFTSResults(ctx context.Context, repo orm.Repo, results []orm.FTSResult) (orm.NoteRev, error) {
+	idx, err := fuzzyfinder.Find(results,
+		func(i int) string {
+			return results[i].Snippet
+		},
+		fuzzyfinder.WithPreviewWindow(func(i, w, h int) string {
+			nr, err := results[i].GetNoteRev(ctx, repo)
+			if err != nil {
+				panic(err)
+			}
+			reader, err := nr.GetReader(ctx, repo)
+			if err != nil {
+				panic(err)
+			}
+
+			raw, err := ioutil.ReadAll(reader)
+			if err != nil {
+				panic(err)
+			}
+
+			md, err := glamour.RenderBytes(raw, "ascii")
+			if err != nil {
+				panic(err)
+			}
+
+			return string(md)
+		}),
+	)
+
+	if err != nil {
+		return orm.NoteRev{}, fmt.Errorf("fuzzy finding search results: %w", err)
+	}
+
+	nr, err := results[idx].GetNoteRev(ctx, repo)
+	if err != nil {
+		return orm.NoteRev{}, fmt.Errorf("fetch note rev for search result: %w", err)
+	}
+
+	return nr, nil
+}

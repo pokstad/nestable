@@ -95,7 +95,14 @@ The view subcommand allows you to view a note without leaving the terminal.
 To select a note to view, `nst view` opens a fuzzy finder to locate a note for viewing.
 By default, the last modified note will be selected.
 
-To view a specific note, `nst v(iew) [<note-ish>]`
+The fuzzy finder only allows searching through the first line of the note.
+To search through the full text of a note, use the full text search option.
+
+`nst view -s <search-term>`
+
+The results of the full text search will be presented in a fuzzy finder list to select the desired one.
+The `<search-term>` supports a number of matching operations.
+Refer to the [SQLite3 FTS5 query syntax documentation](https://www.sqlite.org/fts5.html#full_text_query_syntax) for more details.
 
 ### Browsing notes
 
@@ -134,11 +141,3 @@ You can set a config with:
 - Batteries included - whenever possible, all functionality should derive from the single executable. The editor is the only external dependency and a default editor may be embedded in the future to mitigate that.
 - Interactive first - user interfaces are interactive by default. This makes learning the tool much faster since you don't have to remember a bunch of CLI arguments to start using it.
 - Extensible - there's no definitive way to use it. Various features leave the door open for creative use cases.
-
-### What is `<note-ish>`?
-
-Note-ish is inspired by [Git's "commit-ish" or "tree-ish"](https://stackoverflow.com/questions/23303549/what-are-commit-ish-and-tree-ish-in-git), Note-ish is a notation to specify a note one of several ways. The following list of notations are in order of precedence:
-
-1. note ID - the auto incrementing note ID assigned to each note. This is typically displayed within brackets `[1]` when viewing notes.
-1. note revision sha256 hash - the partial or full hexadecimal SHA256 digest for the revision of the desired note (see note revisions). This allows you to refer to an older revision of a note. You can specify as little of the digest prefix as you want, but it must be enough of the prefix to guarantee a unique revision.
-1. fuzzy match heading - the first result for the given pattern that matches a note's heading (first 80 chars) using the internal fuzzy finder.

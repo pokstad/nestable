@@ -110,6 +110,54 @@ func TestRepoNote(t *testing.T) {
 	require.ElementsMatch(t, []orm.NoteRev{expectNote1Rev2, expectNote2Rev1}, notes)
 }
 
+func TestBlobFTS(t *testing.T) {
+	clockCleanup := mockClock()
+	defer clockCleanup()
+
+	repo, _ := getTestRepo(t)
+	//defer cleanup()
+
+	ctx := context.Background()
+
+	notes := []string{
+		"this is a full text note for a nestable notebook",
+		"once a note, always a note",
+		"nestable allows you to map your mind",
+	}
+	revs := insertTestNotes(t, ctx, repo, notes)
+
+	results, err := repo.FullTextSearch(ctx, "note")
+	require.NoError(t, err)
+
+	// Searching for a token will yield all notes that contain it
+	require.Len(t, results, 2)
+	require.Equal(t, revs[0].SHA256, results[1].SHA256)
+	require.Equal(t, revs[1].SHA256, results[0].SHA256)
+
+	// Updating a note will remove the old version from FTS results
+	revs[0], err = revs[0].UpdateBlob(ctx, repo, bytes.NewBufferString("nestable sounds a lot like..."))
+	require.NoError(t, err)
+	results, err = repo.FullTextSearch(ctx, "note")
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, revs[1].SHA256, results[0].SHA256)
+
+	// Fetch a note revision from a result
+	nr, err := results[0].GetNoteRev(ctx, repo)
+	require.NoError(t, err)
+	require.Equal(t, revs[1], nr)
+}
+
+func insertTestNotes(t *testing.T, ctx context.Context, repo orm.Repo, notes []string) []orm.NoteRev {
+	var revs []orm.NoteRev
+	for _, n := range notes {
+		rev, err := repo.NewNote(ctx, bytes.NewBufferString(n))
+		require.NoError(t, err)
+		revs = append(revs, rev)
+	}
+	return revs
+}
+
 func assertNoteReader(t *testing.T, ctx context.Context, repo orm.Repo, note orm.NoteRev, expectBody []byte) {
 	r, err := note.GetReader(ctx, repo)
 	require.NoError(t, err)
@@ -124,16 +172,17 @@ func getTestRepo(t *testing.T) (orm.Repo, cleanup) {
 	temp, err := ioutil.TempFile("", "test-nestable-*.nest")
 	require.NoError(t, err)
 	require.NoError(t, temp.Close())
+	t.Logf("repo path: %s", temp.Name())
 
-	err = orm.InitRepo(temp.Name())
-	require.NoError(t, err)
-
-	repo, err := orm.LoadRepo(temp.Name())
+	repo, err := orm.InitRepo(temp.Name())
 	require.NoError(t, err)
 
 	return repo, func() { os.Remove(temp.Name()) }
 }
 
+// mockClock makes time more deterministic in tests.
+// Each time mockClock is called, the UNIX time is
+// incremented by one second.
 func mockClock() cleanup {
 	t := time.Unix(0, 0)
 	orm.SetClock(func() time.Time {

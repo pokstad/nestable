@@ -61,6 +61,7 @@ Cheatsheet for common usage:
 | `nst n` | create a new note |
 | `nst e` | select a note to edit |
 | `nst v` | select a note to view |
+| `nst wc` | word cloud |
 | `nst b` | browse all notes |
 | `nst gc -key <key>` | get a configuration value |
 | `nst sc -key <key> -value <value>` | set a configuration value |
@@ -103,6 +104,12 @@ To search through the full text of a note, use the full text search option.
 The results of the full text search will be presented in a fuzzy finder list to select the desired one.
 The `<search-term>` supports a number of matching operations.
 Refer to the [SQLite3 FTS5 query syntax documentation](https://www.sqlite.org/fts5.html#full_text_query_syntax) for more details.
+
+### Word Cloud
+
+Sometimes you aren't sure what you're looking for. The word cloud allows you to view all the terms ranked by appearances. Select a term to view all notes that mention it:
+
+`nst w(ord)-c(loud)`
 
 ### Browsing notes
 

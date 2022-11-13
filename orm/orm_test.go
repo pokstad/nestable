@@ -114,8 +114,8 @@ func TestBlobFTS(t *testing.T) {
 	clockCleanup := mockClock()
 	defer clockCleanup()
 
-	repo, _ := getTestRepo(t)
-	//defer cleanup()
+	repo, cleanup := getTestRepo(t)
+	defer cleanup()
 
 	ctx := context.Background()
 
@@ -146,6 +146,41 @@ func TestBlobFTS(t *testing.T) {
 	nr, err := results[0].GetNoteRev(ctx, repo)
 	require.NoError(t, err)
 	require.Equal(t, revs[1], nr)
+}
+
+func TestWordCloud(t *testing.T) {
+	clockCleanup := mockClock()
+	defer clockCleanup()
+
+	repo, cleanup := getTestRepo(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	notes := []string{
+		"a aa aaa",
+		"a b c",
+		"a b bc",
+	}
+	revs := insertTestNotes(t, ctx, repo, notes)
+
+	// Fetch word cloud
+	terms, err := repo.WordCloudTerms(ctx)
+	require.NoError(t, err)
+	expectTerms := []orm.WCTerm{
+		orm.WCTerm{Term: "aa", NoteCount: 1, InstanceCount: 1},
+		orm.WCTerm{Term: "aaa", NoteCount: 1, InstanceCount: 1},
+		orm.WCTerm{Term: "bc", NoteCount: 1, InstanceCount: 1},
+		orm.WCTerm{Term: "c", NoteCount: 1, InstanceCount: 1},
+		orm.WCTerm{Term: "b", NoteCount: 2, InstanceCount: 2},
+		orm.WCTerm{Term: "a", NoteCount: 3, InstanceCount: 3},
+	}
+	require.ElementsMatch(t, expectTerms, terms)
+
+	instanceRevs, err := expectTerms[5].Instances(ctx, repo)
+	require.NoError(t, err)
+	t.Log(instanceRevs)
+	require.Equal(t, revs, instanceRevs)
 }
 
 func insertTestNotes(t *testing.T, ctx context.Context, repo orm.Repo, notes []string) []orm.NoteRev {

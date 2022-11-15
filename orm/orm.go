@@ -377,3 +377,69 @@ func (r Repo) FullTextSearch(ctx context.Context, searchTerm string) ([]FTSResul
 
 	return results, nil
 }
+
+// WCTerm is a term in the word cloud
+type WCTerm struct {
+	Term          string
+	NoteCount     int64
+	InstanceCount int64
+}
+
+// WordCloudTerms returns all search terms in the word cloud that are not stop words
+func (r Repo) WordCloudTerms(ctx context.Context) ([]WCTerm, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT
+			term,
+			doc,
+			cnt
+		FROM note_fts_vocab_cols
+		WHERE col = "blob_body"
+		ORDER BY cnt DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("querying word cloud terms: %w", err)
+	}
+	defer rows.Close()
+
+	var results []WCTerm
+
+	for rows.Next() {
+		var wc WCTerm
+		if err := rows.Scan(&wc.Term, &wc.NoteCount, &wc.InstanceCount); err != nil {
+			return nil, fmt.Errorf("scanning word cloud term reults: %w", err)
+		}
+		results = append(results, wc)
+	}
+
+	return results, nil
+}
+
+// Instances returns all the places the term occurs
+func (wct WCTerm) Instances(ctx context.Context, repo Repo) ([]NoteRev, error) {
+	rows, err := repo.db.QueryContext(ctx,
+		`SELECT DISTINCT note_rev.note_id, note_rev.blob_sha256, note_rev.timestamp
+		FROM note_fts_vocab_instances
+		INNER JOIN note_fts
+			ON note_fts_vocab_instances.doc = note_fts.rowid
+		INNER JOIN note_rev
+			ON note_fts.note_rev_rowid = note_rev.rowid
+		WHERE term = (?)
+		AND col = 'blob_body'`,
+		wct.Term)
+	if err != nil {
+		return nil, fmt.Errorf("querying term instances for %q: %w", wct.Term, err)
+	}
+	defer rows.Close()
+
+	var results []NoteRev
+
+	for rows.Next() {
+		var nr NoteRev
+		if err := rows.Scan(&nr.ID, &nr.SHA256, &nr.Timestamp); err != nil {
+			return nil, fmt.Errorf("scanning blob fts reults: %w", err)
+		}
+		nr.Timestamp = nr.Timestamp.Local()
+		results = append(results, nr)
+	}
+
+	return results, nil
+}

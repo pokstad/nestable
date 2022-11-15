@@ -42,6 +42,7 @@ var subCmdFactories = []cmdFactory{
 	newBrowseCmd,
 	newGetConfigCmd,
 	newSetConfigCmd,
+	newWorkCloudCmd,
 }
 
 var subCmdsLookup = func() map[string]cmdFactory {

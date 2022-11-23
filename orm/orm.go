@@ -164,6 +164,17 @@ type NoteRev struct {
 	Timestamp time.Time
 }
 
+// Notes implements a subset of the sort.Interface
+type Notes []NoteRev
+
+func (n Notes) Len() int      { return len(n) }
+func (n Notes) Swap(i, j int) { n[i], n[j] = n[j], n[i] }
+
+// ByID allows Notes to be sorted by ID
+type ByID struct{ Notes }
+
+func (bi ByID) Less(i, j int) bool { return bi.Notes[i].ID < bi.Notes[j].ID }
+
 func (nr NoteRev) UpdateBlob(ctx context.Context, r Repo, src io.Reader) (NoteRev, error) {
 	h := sha256.New()
 	src = io.TeeReader(src, h)
@@ -218,7 +229,7 @@ func (b Blob) GetBlobHead(ctx context.Context, r Repo, length int) ([]byte, erro
 	if err := row.Scan(&head); err != nil {
 		return nil, fmt.Errorf("fetching blob head: %w", err)
 	}
-	return head, nil
+	return bytes.Split(head, []byte("\n"))[0], nil
 }
 
 func (b Blob) GetReader(ctx context.Context, r Repo) (io.Reader, error) {

@@ -60,6 +60,7 @@ Cheatsheet for common usage:
 | `nst i` | initialize nest |
 | `nst n` | create a new note |
 | `nst e` | select a note to edit |
+| `nst ex` | export notes to markdown document |
 | `nst v` | select a note to view |
 | `nst wc` | word cloud |
 | `nst b` | browse all notes |
@@ -114,6 +115,16 @@ Sometimes you aren't sure what you're looking for. The word cloud allows you to 
 ### Browsing notes
 
 To browse all notes: `nst b(rowse)` displays all notes in a outline in the terminal.
+
+### Exporting notes
+
+You can export all notes in the current notebook with:
+
+`nst ex(port)`
+
+This will render all of the notes, in order of note ID, in a markdown format.
+A table of contents will be generated at the top of the document, followed by each note.
+Each note will have a header followed by the body of the note.
 
 ### Configuration
 

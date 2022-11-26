@@ -2,6 +2,8 @@
 
 A terminal based app for taking nested notes.
 
+** WARNING: Nestable is currently in an experimental state. Don't expect it to be stable for regular use until v1.0 **
+
 ## Overview
 
 Nestable is a terminal based app for nesting notes within each other. It is delivered as a single executable binary with batteries included. It stores notes locally in a single SQLite file. It has subcommands to help edit notes, find notes, and export notes.
@@ -62,6 +64,7 @@ Cheatsheet for common usage:
 | `nst e` | select a note to edit |
 | `nst ex` | export notes to markdown document |
 | `nst v` | select a note to view |
+| `nst w` | server web version of notes |
 | `nst wc` | word cloud |
 | `nst b` | browse all notes |
 | `nst gc -key <key>` | get a configuration value |
@@ -105,6 +108,14 @@ To search through the full text of a note, use the full text search option.
 The results of the full text search will be presented in a fuzzy finder list to select the desired one.
 The `<search-term>` supports a number of matching operations.
 Refer to the [SQLite3 FTS5 query syntax documentation](https://www.sqlite.org/fts5.html#full_text_query_syntax) for more details.
+
+### Web Browse
+
+To view notes in a web browser:
+
+`nst w(eb)`
+
+By default runs on localhost:3000.
 
 ### Word Cloud
 

@@ -8,7 +8,9 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"sort"
 
+	"github.com/lithammer/fuzzysearch/fuzzy"
 	"github.com/pokstad/nestable/orm"
 )
 
@@ -35,21 +37,33 @@ func Serve(ctx context.Context, repo orm.Repo, r io.Reader, w io.Writer) error {
 	http.HandleFunc("/notes", func(rw http.ResponseWriter, req *http.Request) {
 		defer req.Body.Close()
 
-		notes, err := repo.GetNotes(ctx)
+		allNotes, err := repo.GetNotes(ctx)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		wNotes := make([]note, len(notes))
-		for i, n := range notes {
-			wNotes[i] = note{NoteRev: n}
+		allHeaders := make([]string, len(allNotes))
+
+		for i, n := range allNotes {
 			head, err := n.GetBlobHead(ctx, repo, 100)
 			if err != nil {
 				http.Error(rw, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			wNotes[i].Header = string(head)
+			allHeaders[i] = string(head)
+		}
+		wNotes := make([]note, len(allNotes))
+		for i, n := range allNotes {
+			wNotes[i] = note{NoteRev: n}
+			wNotes[i].Header = allHeaders[i]
+		}
+
+		fuzzySearch := req.URL.Query().Get("fuzzy")
+		if fuzzySearch != "" {
+			ranks := fuzzy.RankFindNormalizedFold(fuzzySearch, allHeaders)
+			sort.Sort(ranks)
+			log.Print(ranks)
 		}
 
 		enc := json.NewEncoder(rw)

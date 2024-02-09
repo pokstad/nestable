@@ -9,7 +9,9 @@ require (
 	github.com/charmbracelet/lipgloss v0.5.0
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/ktr0731/go-fuzzyfinder v0.6.0
+	github.com/lithammer/fuzzysearch v1.1.5
 	github.com/mattn/go-sqlite3 v1.14.15
+	github.com/stretchr/testify v1.8.1
 )
 
 require (
@@ -39,8 +41,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/sahilm/fuzzy v0.1.0 // indirect
-	github.com/stretchr/objx v0.5.0 // indirect
-	github.com/stretchr/testify v1.8.1 // indirect
 	github.com/yuin/goldmark v1.5.3 // indirect
 	github.com/yuin/goldmark-emoji v1.0.1 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
